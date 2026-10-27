@@ -1,0 +1,13 @@
+# 大文件压缩包（超过 GitHub 100MB 限制，仅保留本地）
+项目.zip
+
+# Python 虚拟环境
+.venv/
+**/.venv/
+venv/
+**/venv/
+
+# Python 缓存
+__pycache__/
+*.pyc
+*.pyo

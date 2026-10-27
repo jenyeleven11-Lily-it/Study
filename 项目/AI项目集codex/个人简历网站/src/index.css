@@ -1,0 +1,17 @@
+@layer theme, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+/* Scoped to this new preview root; no page-wide body/html reset or font override. */
+.app-root {
+  box-sizing: border-box;
+  width: calc(100% + 16px);
+  min-height: 100vh;
+  margin: -8px;
+}
+
+.app-root *,
+.app-root *::before,
+.app-root *::after {
+  box-sizing: border-box;
+}

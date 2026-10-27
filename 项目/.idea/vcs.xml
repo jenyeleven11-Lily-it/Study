@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="VcsDirectoryMappings">
+    <mapping directory="$PROJECT_DIR$" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/Douban-Database/douBanDataAnalysis" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/Douban-Database/doubanCopy/douBanDataAnalysis-main/douBanDataAnalysis-main" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/studySpace/douBan" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/studySpace/judyWeb" vcs="Git" />
+  </component>
+</project>

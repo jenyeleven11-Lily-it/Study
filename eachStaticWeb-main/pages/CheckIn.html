@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>打卡实验室 | Each Static Web</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <script>
+        if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark-mode');
+        }
+    </script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=UnifrakturMaguntia&family=Noto+Sans+SC:wght@400;900&display=swap');
+
+        :root {
+            --bg-color: #f5f5f7;
+            --text-color: #1d1d1f;
+            --accent-blue: #0071e3;
+        }
+
+        .dark-mode {
+            --bg-color: #000000;
+            --text-color: #f5f5f7;
+        }
+
+        body {
+            font-family: -apple-system, "SF Pro SC", sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            transition: all 0.5s ease;
+        }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 12px;
+        }
+
+        .calendar-day {
+            aspect-ratio: 1;
+            border-radius: 1.2rem;
+            background: rgba(255, 255, 255, 0.4);
+            border: 1px solid rgba(0, 0, 0, 0.03);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .dark-mode .calendar-day {
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .wreath-bg {
+            position: absolute;
+            inset: 0;
+            background: url('../assets/wheatEarRing.svg') no-repeat center;
+            background-size: 85%;
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        .calendar-day.today {
+            border: 2px solid var(--accent-blue);
+        }
+
+        .calendar-day.today::before {
+            content: "TODAY";
+            font-size: 7px;
+            font-weight: 900;
+            color: var(--accent-blue);
+            position: absolute;
+            top: 6px;
+            letter-spacing: 1px;
+        }
+
+        /* 背景特效 */
+        .calendar-day.all-done-special {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(255, 255, 255, 0.6) 50%, rgba(16, 185, 129, 0.1) 100%) !important;
+            background-size: 200% 200% !important;
+            animation: shine-bg 3s linear infinite !important;
+            border: 1.5px solid rgba(16, 185, 129, 0.3) !important;
+        }
+
+        .calendar-day.all-fail-special {
+            background: rgba(239, 68, 68, 0.05) !important;
+            border: 1.5px solid rgba(239, 68, 68, 0.2) !important;
+        }
+
+        .calendar-day.all-fail-special::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle, rgba(239, 68, 68, 0.15) 0%, transparent 70%);
+            animation: fail-pulse 4s ease-in-out infinite;
+        }
+
+        @keyframes shine-bg {
+            0% {
+                background-position: 0% 50%;
+            }
+
+            50% {
+                background-position: 100% 50%;
+            }
+
+            100% {
+                background-position: 0% 50%;
+            }
+        }
+
+        @keyframes fail-pulse {
+
+            0%,
+            100% {
+                opacity: 0.3;
+                transform: scale(0.9);
+            }
+
+            50% {
+                opacity: 1;
+                transform: scale(1.1);
+            }
+        }
+
+        #hero-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 2000;
+            background: rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(20px);
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.4s ease;
+        }
+
+        #hero-modal.active {
+            display: flex;
+            opacity: 1;
+        }
+
+        .modal-content {
+            width: 90%;
+            max-width: 440px;
+            background: var(--bg-color);
+            padding: 2.5rem;
+            border-radius: 3rem;
+            transform-origin: center;
+            transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .status-box {
+            width: 22px;
+            height: 22px;
+            border-radius: 6px;
+            border: 2px solid rgba(0, 0, 0, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            cursor: pointer;
+        }
+
+        .status-done {
+            background: #10b981;
+            border-color: #10b981 !important;
+            color: white;
+        }
+
+        .status-fail {
+            background: #ef4444;
+            border-color: #ef4444 !important;
+            color: white;
+        }
+
+        .task-chip {
+            background: #0071e3;
+            color: white;
+            padding: 6px 14px;
+            border-radius: 10px;
+            font-size: 12px;
+            font-weight: bold;
+            margin: 4px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .grid-bg {
+            position: fixed;
+            inset: 0;
+            z-index: -1;
+            opacity: 0.03;
+            background-image: radial-gradient(circle, var(--text-color) 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+
+        #conflict-banner {
+            height: 0;
+            overflow: hidden;
+            background: #ffde5b;
+            color: orange;
+            text-align: center;
+            font-size: 10px;
+            font-weight: 900;
+            border-radius: 1rem 1rem 0 0;
+            transition: height 0.6s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+        }
+
+        #conflict-banner.active {
+            height: 30px;
+            line-height: 30px;
+        }
+
+        /* 评论区滚动条优化 */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+        }
+
+        /*评论部分*/
+        /* 海浪容器逻辑 */
+        .calendar-day.has-comments {
+            overflow: hidden;
+        }
+
+        /* 矢量海浪层基础样式 */
+        .calendar-day.has-comments .wave-container {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 12px;
+            /* 控制海浪高度，不占据太多空间 */
+            background: transparent;
+            pointer-events: none;
+            z-index: 5;
+        }
+
+        /* 矢量波浪 SVG 填充 */
+        .calendar-day.has-comments .wave {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 200%;
+            height: 100%;
+            background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 120' preserveAspectRatio='none'%3E%3Cpath d='M321.39,56.44c58-10.79,114.16-30.13,172-41.86,82.39-16.72,168.19-17.73,250.45-.39C823.78,31,906.67,72,985.66,92.83c70.05,18.48,146.53,26.09,214.34,3V120H0V0C48,35,98,69,142.63,80.66,203.4,96.53,259.46,67.92,321.39,56.44Z' fill='%230071e3' fill-opacity='0.2'/%3E%3C/svg%3E");
+            background-size: 50% 100%;
+            animation: wave-move 4s linear infinite;
+        }
+
+        /* 第二层波浪，形成错位感 */
+        .calendar-day.has-comments .wave-secondary {
+            background-position: 100px 0;
+            animation: wave-move 7s linear infinite reverse;
+            opacity: 0.15;
+        }
+
+        @keyframes wave-move {
+            from {
+                transform: translateX(0);
+            }
+
+            to {
+                transform: translateX(-50%);
+            }
+        }
+
+        /* 深色模式下海浪颜色微调 */
+        .dark-mode .calendar-day.has-comments .wave {
+            filter: brightness(1.2);
+        }
+    </style>
+</head>
+
+<body class="antialiased">
+    <div class="grid-bg"></div>
+    <script src="../components/navbar.js"></script>
+
+    <main class="max-w-4xl mx-auto px-8 pt-32 pb-20">
+        <header class="mb-12 flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
+            <div>
+                <div class="flex items-center gap-4 mb-2">
+                    <h1 class="text-4xl font-black tracking-tight" style="font-family: 'Noto Sans SC'">打卡实验室</h1>
+                    <select id="user-selector" onchange="switchUserView()"
+                        class="bg-blue-600/10 text-blue-600 text-[10px] font-black px-4 py-1.5 rounded-full outline-none cursor-pointer uppercase tracking-widest">
+                    </select>
+                </div>
+                <p class="text-gray-400 font-mono text-[10px] tracking-[0.2em]">CLOUD NODE: VERCEL-KV // DATA SYNCING
+                </p>
+            </div>
+
+            <div class="flex flex-col items-end gap-3">
+                <div class="flex items-center gap-4">
+                    <span id="auth-status-text"
+                        class="text-[10px] font-mono font-bold text-gray-400 uppercase tracking-tighter">Identity: Not
+                        Verified</span>
+                    <div class="flex items-center gap-2">
+                        <div id="g_id_onload"
+                            data-client_id="609809453790-kdjpgmqh15b6bbom07tkhd4ih8lnug3b.apps.googleusercontent.com"
+                            data-callback="handleSignIn" data-auto_select="true"></div>
+                        <div class="g_id_signin" data-type="standard" data-shape="rectangular" data-theme="outline"
+                            data-text="signin_with" data-size="small" data-logo_alignment="left"></div>
+                        <span class="text-gray-300 mx-1">|</span>
+                        <input type="month" id="month-picker" onchange="changeMonth()"
+                            class="bg-blue-600/5 text-blue-600 font-mono font-black px-4 py-1.5 rounded-xl border-none outline-none cursor-pointer text-sm">
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <div class="calendar-grid" id="calendar"></div>
+
+        <div class="relative mt-12">
+            <div id="conflict-banner">⚠️ 已进入编辑模式,会覆盖旧有内容 点击tag前按钮会切换状态[✔❌⚪]</div>
+            <div id="input-zone"
+                class="p-10 rounded-b-[3.5rem] bg-white/40 dark:bg-zinc-900/40 backdrop-blur border border-black/5 dark:border-white/5 opacity-50 pointer-events-none transition-all">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 id="input-header" class="font-bold flex items-center gap-3"><i
+                            class="fas fa-fingerprint text-blue-500"></i> 等待身份验证...</h3>
+                    <span id="editing-date-display"
+                        class="bg-blue-600 text-white text-[10px] px-3 py-1 rounded-md font-mono font-bold tracking-tighter">TARGET:
+                        ----</span>
+                </div>
+                <div id="task-preview-area" class="flex flex-wrap mb-6"></div>
+                <textarea id="task-input" rows="1"
+                    class="w-full bg-transparent border-none p-0 text-xl font-medium focus:ring-0 placeholder-gray-300 dark:placeholder-gray-700 resize-none overflow-hidden"
+                    placeholder="键入今日文稿条目, Enter 分离..."></textarea>
+                <div class="mt-10 flex justify-between items-center">
+                    <div class="flex items-center gap-2 text-[10px] text-gray-400 font-mono"><span
+                            class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span> SYSTEM READY</div>
+                    <button onclick="doCheckIn()"
+                        class="px-10 py-4 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-black rounded-2xl font-black text-xs uppercase tracking-widest hover:scale-105 active:scale-95 transition shadow-2xl">同步至云端</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div id="hero-modal" onclick="closeHero()">
+        <div id="modal-content" class="modal-content" onclick="event.stopPropagation()">
+            <div id="modal-date"
+                class="text-[10px] font-mono text-blue-600 tracking-widest uppercase mb-4 opacity-50 text-center"></div>
+            <div id="modal-text-content" class="space-y-3 mb-6"></div>
+
+            <div class="mt-8 pt-6 border-t border-black/5 dark:border-white/5">
+                <h4 class="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-4">实验室评论 / Comments</h4>
+                <div id="modal-comments-list" class="space-y-3 max-h-40 overflow-y-auto mb-6 pr-2 custom-scrollbar">
+                </div>
+                <div class="flex gap-2">
+                    <input id="comment-input" type="text"
+                        class="flex-1 bg-black/5 dark:bg-white/5 border-none rounded-xl px-4 py-2 text-xs outline-none focus:ring-1 focus:ring-blue-500"
+                        placeholder="发表评论...">
+                    <button onclick="submitComment()"
+                        class="bg-blue-600 text-white px-4 py-2 rounded-xl text-xs font-bold">发送</button>
+                </div>
+            </div>
+
+            <div id="edit-zone" class="hidden my-4">
+                <button id="edit-trigger-btn"
+                    class="w-full py-4 bg-blue-600/10 text-blue-600 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-blue-600 hover:text-white transition">进入编辑模式</button>
+            </div>
+            <button onclick="closeHero()"
+                class="w-full py-4 bg-zinc-100 dark:bg-zinc-800 rounded-2xl text-[10px] font-black uppercase tracking-widest opacity-40">关闭</button>
+        </div>
+    </div>
+
+    <div id="name-modal"
+        class="hidden fixed inset-0 z-[100] flex items-center justify-center bg-black/20 backdrop-blur-md">
+        <div class="bg-white dark:bg-zinc-900 p-12 rounded-[3.5rem] text-center max-w-sm shadow-2xl">
+            <h2 class="text-2xl font-black mb-6">新身份识别</h2>
+            <input id="nickname-input" type="text"
+                class="w-full bg-zinc-100 dark:bg-zinc-800 p-5 rounded-2xl mb-8 outline-none border-2 border-transparent focus:border-blue-500 text-center font-bold"
+                placeholder="输入实验室代号">
+            <button onclick="confirmNickname()"
+                class="w-full py-5 bg-blue-600 text-white rounded-2xl font-black">建立连接</button>
+        </div>
+    </div>
+
+    <div id="success-toast"
+        class="fixed bottom-[-100px] left-1/2 -translate-x-1/2 bg-green-500 text-white px-8 py-4 rounded-full transition-all duration-500 font-bold z-50">
+        数据已持久化</div>
+
+    <script>
+        const calendarEl = document.getElementById('calendar');
+        const userSelector = document.getElementById('user-selector');
+        const taskInput = document.getElementById('task-input');
+        const monthPicker = document.getElementById('month-picker');
+        const conflictBanner = document.getElementById('conflict-banner');
+        const authStatusText = document.getElementById('auth-status-text');
+
+        let now = new Date();
+        let currentYear = now.getFullYear();
+        let currentMonth = now.getMonth();
+        let currentTasks = [];
+        let loginUser = null;
+        let googleSub = null;
+        let cloudData = {};
+        let editingDate = `${currentYear}-${currentMonth + 1}-${now.getDate()}`;
+
+        window.onload = () => {
+            monthPicker.value = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`;
+            loadCheckInData();
+        };
+
+        async function loadCheckInData() {
+            try {
+                const res = await fetch('/api/checkin');
+                cloudData = await res.json();
+                updateUserList();
+                renderCalendar();
+            } catch (e) { console.error("加载数据失败:", e); }
+        }
+
+        // 核心修复：深度递归解析数据，防止嵌套陷阱
+        function parseDayData(rawData) {
+            let result = { tasks: [], comments: [] };
+            if (!rawData) return result;
+
+            try {
+                let data = typeof rawData === 'string' ? JSON.parse(rawData) : rawData;
+
+                // 递归“脱壳”：如果发现 tasks 属性里还嵌套着 tasks，就继续往里找
+                const unwrap = (obj) => {
+                    if (obj && obj.tasks && !Array.isArray(obj.tasks)) {
+                        // 如果存在嵌套评论，进行合并
+                        if (obj.comments) result.comments = result.comments.concat(obj.comments);
+                        return unwrap(obj.tasks);
+                    }
+                    return obj;
+                };
+
+                let finalObj = unwrap(data);
+
+                if (Array.isArray(finalObj)) {
+                    result.tasks = finalObj;
+                } else if (finalObj && finalObj.tasks) {
+                    result.tasks = Array.isArray(finalObj.tasks) ? finalObj.tasks : [];
+                    if (finalObj.comments) result.comments = result.comments.concat(finalObj.comments);
+                }
+
+                // 过滤重复评论（根据ID或内容+时间）
+                const seen = new Set();
+                result.comments = result.comments.filter(c => {
+                    const key = c.id || `${c.user}-${c.content}-${c.time}`;
+                    return seen.has(key) ? false : seen.add(key);
+                });
+
+            } catch (e) { console.error("解析错误:", e); }
+            return result;
+        }
+
+        function renderCalendar() {
+            calendarEl.innerHTML = '';
+            const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+            const targetUser = userSelector.value || loginUser;
+            const userData = cloudData[targetUser] || {};
+
+            for (let i = 1; i <= daysInMonth; i++) {
+                const dateKey = `${currentYear}-${currentMonth + 1}-${i}`;
+                const rawData = userData[dateKey];
+                const day = document.createElement('div');
+                const isToday = i === now.getDate() && currentMonth === now.getMonth() && currentYear === now.getFullYear();
+
+                day.className = `calendar-day ${isToday ? 'today' : ''}`;
+                day.innerHTML = `<span class="font-mono text-xs font-black opacity-20 z-10">${i}</span>`;
+
+                if (rawData) {
+                    const dayObj = parseDayData(rawData);
+
+                    if (dayObj.comments && dayObj.comments.length > 0) {
+                        day.classList.add('has-comments');
+                        if (!day.querySelector('.wave-container')) {
+                            const waveContainer = document.createElement('div');
+                            waveContainer.className = 'wave-container';
+                            waveContainer.innerHTML = `<div class="wave"></div><div class="wave wave-secondary"></div>`;
+                            day.appendChild(waveContainer);
+                        }
+                    }
+
+                    const items = dayObj.tasks;
+                    if (items.length > 0) {
+                        const allDone = items.every(it => it.status === 1);
+                        const allFail = items.every(it => it.status === 2);
+                        const anyDone = items.some(it => it.status === 1);
+                        const anyPending = items.some(it => it.status === 0);
+
+                        if (allDone) {
+                            day.classList.add('all-done-special');
+                            day.innerHTML += `<div class="wreath-bg"></div>`;
+                        } else if (allFail) {
+                            day.classList.add('all-fail-special');
+                        }
+
+                        const dot = document.createElement('div');
+                        dot.className = 'w-1.5 h-1.5 rounded-full mt-2';
+                        let dotColor = '#d1d5db';
+                        if (allDone) dotColor = '#10b981';
+                        else if (allFail) dotColor = '#ef4444';
+                        else if (anyDone || (anyPending && items.some(it => it.status === 2))) dotColor = '#f59e0b';
+                        dot.style.background = dotColor;
+                        day.appendChild(dot);
+                    }
+                    day.onclick = (e) => openHero(e, dateKey, targetUser, rawData);
+                } else {
+                    day.onclick = () => {
+                        editingDate = dateKey;
+                        document.getElementById('editing-date-display').innerText = `TARGET: ${dateKey}`;
+                        checkConflict();
+                        window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+                    };
+                }
+                calendarEl.appendChild(day);
+            }
+        }
+
+        function openHero(event, date, user, rawData) {
+            editingDate = date;
+            const modal = document.getElementById('hero-modal');
+            modal.classList.add('active');
+
+            if (event && event.currentTarget) {
+                const content = document.getElementById('modal-content');
+                const rect = event.currentTarget.getBoundingClientRect();
+                content.style.transition = 'none';
+                content.style.transform = `translate(${rect.left - window.innerWidth / 2 + rect.width / 2}px, ${rect.top - window.innerHeight / 2 + rect.height / 2}px) scale(0.1)`;
+                setTimeout(() => {
+                    content.style.transition = 'all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)';
+                    content.style.transform = `translate(0, 0) scale(1)`;
+                }, 10);
+            }
+
+            document.getElementById('modal-date').innerText = `${date} // ${user}`;
+
+            const dayObj = parseDayData(rawData);
+
+            // 渲染任务
+            document.getElementById('modal-text-content').innerHTML = dayObj.tasks.map((t, idx) => `
+            <div class="flex items-center gap-4 p-3 bg-black/5 rounded-xl">
+                <div class="status-box ${t.status === 1 ? 'status-done' : (t.status === 2 ? 'status-fail' : '')}" 
+                     onclick="cycleStatus(${idx}, '${date}', '${user}')">
+                    ${t.status === 1 ? '✓' : (t.status === 2 ? '×' : '')}
+                </div>
+                <span class="text-sm font-bold">${t.text}</span>
+            </div>
+        `).join('');
+
+            window.cycleStatus = (idx, d, u) => {
+                if (u !== loginUser) return;
+                dayObj.tasks[idx].status = (dayObj.tasks[idx].status + 1) % 3;
+                fetch('/api/checkin', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user: loginUser, date: d, text: JSON.stringify(dayObj.tasks) })
+                }).then(() => {
+                    loadCheckInData().then(() => {
+                        openHero(null, d, u, cloudData[u][d]);
+                    });
+                });
+            };
+
+            // 渲染评论
+            const commentContainer = document.getElementById('modal-comments-list');
+            if (dayObj.comments && dayObj.comments.length > 0) {
+                commentContainer.innerHTML = dayObj.comments.map(c => `
+                <div class="bg-black/5 dark:bg-white/5 p-3 rounded-2xl group relative mb-2">
+                    <div class="flex justify-between mb-1">
+                        <span class="text-[9px] font-black text-blue-600 uppercase">${c.user}</span>
+                        <span class="text-[8px] opacity-40 font-mono">${c.time}</span>
+                    </div>
+                    <p class="text-[11px] font-medium leading-relaxed">${c.content}</p>
+                    ${c.user === loginUser ? `<button onclick="deleteComment('${c.id}')" class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 text-[8px] text-red-500 transition">删除</button>` : ''}
+                </div>
+            `).join('');
+            } else {
+                commentContainer.innerHTML = `<p class="text-[10px] text-gray-400 italic text-center py-4">暂无评论</p>`;
+            }
+
+            const ez = document.getElementById('edit-zone');
+            ez.className = user === loginUser ? 'block my-4' : 'hidden';
+            document.getElementById('edit-trigger-btn').onclick = () => {
+                currentTasks = [...dayObj.tasks];
+                document.getElementById('editing-date-display').innerText = `TARGET: ${date}`;
+                renderChips();
+                closeHero();
+                checkConflict();
+                window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+            };
+        }
+
+        async function submitComment() {
+            const input = document.getElementById('comment-input');
+            const content = input.value.trim();
+            const targetUser = userSelector.value || loginUser;
+            if (!loginUser || !content || !targetUser) return;
+
+            const commentData = {
+                user: loginUser,
+                content: content,
+                time: new Date().toLocaleString('zh-CN', { hour12: false, month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(/\//g, '-')
+            };
+
+            const res = await fetch('/api/checkin', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    user: targetUser,
+                    date: editingDate,
+                    text: JSON.stringify(commentData),
+                    type: 'add_comment'
+                })
+            });
+
+            if (res.ok) {
+                input.value = '';
+                await loadCheckInData();
+                openHero(null, editingDate, targetUser, cloudData[targetUser][editingDate]);
+            }
+        }
+
+        async function deleteComment(id) {
+            if (!confirm('确定删除这条评论吗？')) return;
+
+            const targetUser = userSelector.value || loginUser;
+
+            // --- 核心改进：即时响应 (UI First) ---
+            // 1. 获取本地缓存中的数据
+            let raw = cloudData[targetUser][editingDate];
+            let dayObj = parseDayData(raw);
+
+            // 2. 在本地数据中先行删除
+            dayObj.comments = dayObj.comments.filter(c => c.id !== id);
+
+            // 3. 立即更新本地缓存并刷新当前弹窗显示
+            cloudData[targetUser][editingDate] = JSON.stringify(dayObj);
+            openHero(null, editingDate, targetUser, cloudData[targetUser][editingDate]);
+
+            // 4. 同步更新日历图标 (如果评论删光了，海浪也要消失)
+            renderCalendar();
+
+            // 5. 最后异步发送请求到后端持久化
+            try {
+                const res = await fetch('/api/checkin', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        user: targetUser,
+                        date: editingDate,
+                        commentId: id,
+                        type: 'delete_comment'
+                    })
+                });
+
+                if (res.ok) {
+                    // 静默拉取最新全量数据确保一致性
+                    await loadCheckInData();
+                }
+            } catch (e) {
+                console.error("删除同步失败:", e);
+                alert("网络异常，删除可能未同步至云端");
+            }
+        }
+
+        function handleSignIn(response) {
+            authStatusText.innerText = "Status: Authenticating...";
+            const payload = JSON.parse(atob(response.credential.split('.')[1]));
+            googleSub = payload.sub;
+            const savedName = localStorage.getItem(`nickname_${googleSub}`);
+            if (savedName) initUserSession(savedName);
+            else document.getElementById('name-modal').classList.remove('hidden');
+        }
+
+        function confirmNickname() {
+            const val = document.getElementById('nickname-input').value.trim();
+            if (val) {
+                localStorage.setItem(`nickname_${googleSub}`, val);
+                initUserSession(val);
+                document.getElementById('name-modal').classList.add('hidden');
+            }
+        }
+
+        function initUserSession(name) {
+            loginUser = name;
+            authStatusText.innerText = `Verified: ${name}`;
+            authStatusText.classList.replace('text-gray-400', 'text-green-500');
+            document.getElementById('input-zone').classList.remove('opacity-50', 'pointer-events-none');
+            document.getElementById('input-header').innerHTML = `<i class="fas fa-unlock text-blue-500 mr-2"></i> 已识别身份: ${name}`;
+            document.getElementById('editing-date-display').innerText = `TARGET: ${editingDate}`;
+            loadCheckInData();
+        }
+
+        function checkConflict() {
+            const conflict = cloudData[loginUser] && cloudData[loginUser][editingDate];
+            if (conflict) conflictBanner.classList.add('active');
+            else conflictBanner.classList.remove('active');
+        }
+
+        taskInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const val = taskInput.value.trim();
+                if (val) {
+                    currentTasks.push({ text: val, status: 0 });
+                    taskInput.value = '';
+                    renderChips();
+                }
+            }
+        });
+
+        function renderChips() {
+            document.getElementById('task-preview-area').innerHTML = currentTasks.map((t, i) => `
+            <div class="task-chip">
+                <span onclick="toggleStatus(${i})" class="cursor-pointer">${t.status === 1 ? '✓' : (t.status === 2 ? '×' : '○')}</span>
+                <span>${t.text}</span>
+                <i class="fas fa-times opacity-30 cursor-pointer" onclick="currentTasks.splice(${i},1);renderChips();"></i>
+            </div>
+        `).join('');
+        }
+
+        window.toggleStatus = (i) => { currentTasks[i].status = (currentTasks[i].status + 1) % 3; renderChips(); };
+
+        // 修改后的 doCheckIn 函数
+        async function doCheckIn() {
+            if (!loginUser || currentTasks.length === 0) return;
+
+            const res = await fetch('/api/checkin', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    user: loginUser,
+                    date: editingDate,
+                    text: JSON.stringify(currentTasks), // 传纯数组字符串
+                    type: 'update_tasks' // 明确告诉后端这是更新任务
+                })
+            });
+
+            if (res.ok) {
+                showSuccessToast(); // 你的成功提示逻辑
+                currentTasks = [];
+                renderChips();
+                await loadCheckInData(); // 重新拉取干净的数据
+            }
+        }
+
+        function updateUserList() {
+            const users = Object.keys(cloudData);
+            const currentSelected = userSelector.value;
+            userSelector.innerHTML = users.map(u => `<option value="${u}" ${u === (currentSelected || loginUser) ? 'selected' : ''}>👤 ${u}</option>`).join('');
+        }
+
+        function changeMonth() {
+            const val = monthPicker.value.split('-');
+            currentYear = parseInt(val[0]);
+            currentMonth = parseInt(val[1]) - 1;
+            renderCalendar();
+        }
+
+        function closeHero() { document.getElementById('hero-modal').classList.remove('active'); }
+        function switchUserView() { renderCalendar(); }
+    </script>
+</body>
+
+</html>
