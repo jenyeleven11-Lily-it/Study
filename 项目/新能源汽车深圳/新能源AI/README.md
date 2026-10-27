@@ -8,9 +8,7 @@ GitHub公开数据集 UrbanEV(深圳新能源充电数据)
 [附实际仓库链接]
 
 ## 当前进度
-- 已完成:数据清洗、occupancy宽表转长表、区域设施统计、初步EDA
-- 进行中:POI空间属性分析
-- 未开始:业务归因分析、PowerBI dashboard、AI辅助模块
+- 已完成:数据清洗、occupancy宽表转长表、区域设施统计、初步EDA、POI空间属性分析、业务归因分析、PowerBI dashboard、AI辅助模块
 
 ## 指标说明
 - 官方指标:occupancy ratio(数据集直接提供,无公开计算公式,直接引用)
